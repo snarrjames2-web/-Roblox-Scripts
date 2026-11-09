@@ -13,10 +13,17 @@ local scriptSource = [[
     local player = Players.LocalPlayer
     local playerGui = player:WaitForChild("PlayerGui")
 
-    -- Execute the vr_mobile layout script from your updated repository link
+    -- 1️⃣ FIRST THREAD: Execute the vr_mobile layout script from your updated repository link
     task.spawn(function()
         pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/snarrjames2-web/-Roblox-Scripts/refs/heads/main/vr_mobile.lua"))()
+            loadstring(game:HttpGet("https://githubusercontent.com"))()
+        end)
+    end)
+
+    -- 2️⃣ SECOND THREAD: Executes your custom vr.lua link natively without cuts
+    task.spawn(function()
+        pcall(function()
+            loadstring(game:HttpGet("https://githubusercontent.com"))()
         end)
     end)
 
